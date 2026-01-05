@@ -37,7 +37,7 @@ public void run() {
         out.println("Enter host password to connect:");
         String enteredPassword = in.readLine();
         if (enteredPassword == null || !enteredPassword.equals(hostPassword)) {
-            out.println("incorrect host password.");
+            out.println("incorrect host password. Disconnecting.");
             socket.close();
             return;
         }
@@ -61,7 +61,17 @@ public void run() {
         out.println("OK: Logged in as " + username);
         Server.broadcast(username + " joined the chat.", this);
 
-        // Main loop...
+        // ✅ MAIN CHAT LOOP (THIS WAS MISSING)
+        String msg;
+        while ((msg = in.readLine()) != null) {
+            if (msg.startsWith("/")) {
+                handleCommand(msg);
+            } else if (currentRoom != null) {
+                currentRoom.broadcast("<"+PermissionManager.getName(permissionLevel)+">" + username + ": " + msg);
+            } else {
+                send("Join a room first with /join <roomname>");
+            }
+        }
     } catch (IOException e) {
         System.out.println("Connection lost with user " + username);
     } finally {
@@ -131,7 +141,7 @@ public void run() {
                 }
                 String roomName = parts[1];
                 if (currentRoom != null) currentRoom.removeMember(this);
-                currentRoom = Server.getOrCreateRoom(roomName);
+                currentRoom = Server.getRoom(roomName);
                 currentRoom.addMember(this);
                 break;
 

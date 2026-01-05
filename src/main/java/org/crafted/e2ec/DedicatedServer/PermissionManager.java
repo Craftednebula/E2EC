@@ -59,4 +59,9 @@ public class PermissionManager {
         if (pl == null) return false;
         return pl.actions.getOrDefault(action, false);
     }
+    public static String getName(int userLevel) {
+        PermissionLevel pl = levels.get(userLevel);
+        pl.name = (pl == null) ? "Unknown" : pl.name;
+        return pl.name;
+    }
 }

@@ -37,22 +37,21 @@ public class Client {
         PrintWriter out = new PrintWriter(chatSocket.getOutputStream(), true);
         BufferedReader in = new BufferedReader(new InputStreamReader(chatSocket.getInputStream()));
 
-        // 3️⃣ Read alias prompt
-        System.out.println(in.readLine());
-        String alias = console.readLine();
-        out.println(alias);
+        // Read server prompts and respond dynamically
+        String serverLine;
+        while ((serverLine = in.readLine()) != null) {
+            System.out.println(serverLine);
 
-        // 4️⃣ Read password prompt
-        System.out.println(in.readLine());
-        String password = console.readLine();
-        out.println(password);
+            // Stop once logged in
+            if (serverLine.startsWith("OK: Logged in")) {
+                break;
+            }
 
-        String joinResp = in.readLine();
-        System.out.println(joinResp);
-        if (!joinResp.startsWith("OK")) {
-            chatSocket.close();
-            return;
+            // Server expects input
+            String userInput = console.readLine();
+            out.println(userInput);
         }
+
 
         // 5️⃣ Start chat loop
         Thread reader = new Thread(() -> {
