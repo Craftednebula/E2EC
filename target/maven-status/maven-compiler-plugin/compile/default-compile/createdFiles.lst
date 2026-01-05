@@ -1,3 +1,10 @@
-org\crafted\e2ec\ClientHandler.class
-org\crafted\e2ec\Server.class
-org\crafted\e2ec\Client.class
+org\crafted\e2ec\DedicatedServer\Room.class
+org\crafted\e2ec\E2lookup\LookupServer$ChatInfo.class
+org\crafted\e2ec\DedicatedServer\PermissionManager$PermissionLevel.class
+org\crafted\e2ec\DedicatedServer\UserManager$User.class
+org\crafted\e2ec\E2client\Client.class
+org\crafted\e2ec\E2lookup\LookupServer.class
+org\crafted\e2ec\DedicatedServer\UserManager.class
+org\crafted\e2ec\DedicatedServer\ClientHandler.class
+org\crafted\e2ec\DedicatedServer\PermissionManager.class
+org\crafted\e2ec\DedicatedServer\Server.class
