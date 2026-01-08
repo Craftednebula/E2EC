@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+
 public class UserManager {
 
     private Connection conn;
@@ -16,7 +17,7 @@ public class UserManager {
         conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
         initialize();
     }
-
+    
     private void initialize() throws SQLException {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("""
@@ -28,6 +29,37 @@ public class UserManager {
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
             """);
+        }
+    }
+    public User getUser(String username) {
+        String sql = "SELECT username, permission_level FROM users WHERE username = ?";
+
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, username);
+
+            ResultSet rs = stmt.executeQuery();
+            if (!rs.next()) return null;
+
+            return new User(
+                rs.getString("username"),
+                rs.getInt("permission_level")
+            );
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    public boolean setPermissionLevel(String username, int newLevel) {
+        String sql = "UPDATE users SET permission_level = ? WHERE username = ?";
+
+         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, newLevel);
+            stmt.setString(2, username);
+
+            return stmt.executeUpdate() == 1;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 

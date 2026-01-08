@@ -35,6 +35,7 @@ public class Server {
     public static void main(String[] args) throws IOException {
         ensureConfigFiles();
         loadServerProperties();
+        loadRooms();
         // Load permission definitions
         PermissionManager.loadPermissions();
 
@@ -123,6 +124,31 @@ public class Server {
             }
             System.out.println("Generated banned.properties");
         }
+        // ---------- rooms.properties ----------
+        File roomsFile = new File("rooms.properties");
+        if (!roomsFile.exists()) {
+            try (FileWriter fw = new FileWriter(roomsFile)) {
+                fw.write("""
+                0.name=general
+                0.viewingallowed=0,1,100
+                0.chattingallowed=0,1,100
+                0.savehistory=true
+                0.broadcastall=false
+                0.tagmessageswithroom=true
+                """);
+            }
+            System.out.println("Generated rooms.properties");
+        }
+
+    }
+    static void broadcastRoomMessage(Room room, String message) {
+        for (ClientHandler c : clients) {
+
+            // Receiver must be allowed to view the room
+            if (!room.canView(c.getPermissionLevel())) continue;
+
+            c.send(message);
+        }
     }
 
     private static void registerWithLookupServer() {
@@ -156,6 +182,84 @@ public class Server {
         System.out.println(" Owner: " + OWNER_USERNAME);
         System.out.println(" Lookup Server: " + LOOKUP_HOST + ":" + LOOKUP_PORT + " (hardcoded)");
     }
+    static void loadRooms() throws IOException {
+        Properties props = new Properties();
+        File roomsFile = new File("rooms.properties");
+        if (!roomsFile.exists()) {
+            try (FileWriter fw = new FileWriter(roomsFile)) {
+                fw.write("""
+                0.name=general
+                0.viewingallowed=0,1,100
+                0.chattingallowed=0,1,100
+                0.savehistory=true
+                0.broadcastall=false
+                0.tagmessageswithroom=true
+                """);
+            }
+            System.out.println("Generated rooms.properties");
+        }
+        try (FileInputStream in = new FileInputStream("rooms.properties")) {
+            props.load(in);
+        }
+
+        rooms.clear();
+
+        int index = 0;
+        while (true) {
+            String name = props.getProperty(index + ".name");
+            if (name == null) break;
+
+            Set<Integer> viewing =
+                Room.parsePermissionList(props.getProperty(index + ".viewingallowed"));
+
+            Set<Integer> chatting =
+                Room.parsePermissionList(props.getProperty(index + ".chattingallowed"));
+
+            boolean saveHistory =
+                Boolean.parseBoolean(props.getProperty(index + ".savehistory", "false"));
+
+            boolean broadcastAll =
+                Boolean.parseBoolean(props.getProperty(index + ".broadcastall", "false"));
+
+            boolean tagMessagesWithRoom =
+                Boolean.parseBoolean(props.getProperty(index + ".tagmessageswithroom", "true"));
+
+            Room room = new Room(
+                name,
+                viewing,
+                chatting,
+                saveHistory,
+                broadcastAll,
+                tagMessagesWithRoom
+            );
+
+            rooms.put(name, room);
+            index++;
+        }
+
+
+        System.out.println("Loaded " + rooms.size() + " rooms.");
+    }
+    static synchronized void saveRooms() {
+        Properties props = new Properties();
+
+        int index = 0;
+        for (Room room : rooms.values()) {
+            props.setProperty(index + ".name", room.getName());
+            props.setProperty(index + ".viewingallowed", "0,1,100");
+            props.setProperty(index + ".chattingallowed", "0,1,100");
+            props.setProperty(index + ".savehistory", "true");
+            props.setProperty(index + ".broadcastall", "true");
+            props.setProperty(index + ".tagmessageswithroom", "true");
+            index++;
+        }
+
+        try (FileOutputStream out = new FileOutputStream("rooms.properties")) {
+            props.store(out, "E2EC Rooms Configuration");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     static void broadcast(String message, ClientHandler sender) {
         for (ClientHandler c : clients) {
@@ -177,7 +281,19 @@ public class Server {
         }
         return null;
     }
-    static Room createRoom(String roomName) {
-        return new Room(roomName);
+    static Room createRoom(
+        String name,
+        Set<Integer> viewing,
+        Set<Integer> chatting,
+        boolean saveHistory,
+        boolean broadcastAll,
+        boolean tag
+    ) {
+        Room room = new Room(name, viewing, chatting, saveHistory, broadcastAll, tag);
+        rooms.put(name, room);
+        Room.saveRoomToProperties(room);
+        return room;
     }
+
+
 }
