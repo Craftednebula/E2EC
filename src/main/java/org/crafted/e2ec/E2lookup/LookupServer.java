@@ -7,7 +7,8 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
-
+//unused class. A lookup server to register and find chat servers by name (no longer used in favor of direct IP connections)
+//delete me
 public class LookupServer {
 
     static class ChatInfo {

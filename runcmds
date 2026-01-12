@@ -1,4 +1,4 @@
 mvn clean compile
 mvn exec:java "-Dexec.mainClass=org.crafted.e2ec.E2lookup.LookupServer"
 mvn exec:java "-Dexec.mainClass=org.crafted.e2ec.DedicatedServer.Server"
-mvn exec:java "-Dexec.mainClass=org.crafted.e2ec.E2client.Client"
+mvn exec:java "-Dexec.mainClass=org.crafted.e2ec.E2client.ClientMain"

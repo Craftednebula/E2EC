@@ -27,17 +27,21 @@ public class ClientHandler implements Runnable {
         out = new PrintWriter(socket.getOutputStream(), true);
     }
     public String getUsername() {
+        //Output: username of the connected client
         return username;
     }
     public Room getCurrentRoom() {
+        //Output: current room of the connected client
         return currentRoom;
     }
     public int getPermissionLevel() {
+        //Output: permission level of the connected client
         return permissionLevel;
     }
 
     @Override
     public void run() {
+        // main server-client interaction
         try {
             // Host password check
             out.println("Enter host password to connect:");
@@ -64,20 +68,22 @@ public class ClientHandler implements Runnable {
             }
 
             // Logged in successfully
-            out.println("OK: Logged in as " + username);
+            out.println("OK: Logged inj"+Server.CHAT_NAME);
             Server.broadcast(username + " joined the chat.", this);
 
-            // ✅ MAIN CHAT LOOP (THIS WAS MISSING)
+            //main server-client input/output loop
             String msg;
             while ((msg = in.readLine()) != null) {
                 if (msg.startsWith("/")) {
                     handleCommand(msg);
                 } else if (currentRoom != null) {
 
-                    // 🚫 CHAT PERMISSION CHECK
-                    if (!currentRoom.canChat(permissionLevel)) {
+                    // CHAT PERMISSION CHECK
+                    if (msg.startsWith("/")) {
+                        handleCommand(msg);
+                    }else if (!currentRoom.canChat(permissionLevel)) {
                         send("You do not have permission to chat in this room.");
-                        return;
+                        continue;
                     }
 
                     String formatted = "<" + PermissionManager.getName(permissionLevel) + ">"
@@ -87,7 +93,7 @@ public class ClientHandler implements Runnable {
                         formatted = "[" + currentRoom.getName() + "] " + formatted;
                     }
 
-                    // 📢 BROADCAST ALL OR ROOM-ONLY
+                    // broadcast message if broadcastall is enabled (otherwise only to connected clients in the room)
                     if (currentRoom.shouldBroadcastAll()) {
                         Server.broadcastRoomMessage(currentRoom, formatted);
                     } else {
@@ -104,6 +110,9 @@ public class ClientHandler implements Runnable {
     }
 
     private ClientHandler findUser(String name) {
+        //Input: username to find
+        //Output: ClientHandler of the user with the given username (clienthandler is just the server's representation of a connected client)
+        //example: findUser("Alice") returns the ClientHandler object for the user "Alice" if they are connected, or null if not found
         for (ClientHandler c : Server.clients) {
             if (c.getUsername() != null &&
                 c.getUsername().equalsIgnoreCase(name)) {
@@ -114,6 +123,8 @@ public class ClientHandler implements Runnable {
     }
 
     private boolean handleRegistration() {
+        //handle user registration process with the client
+        //output: boolean indicating success or failure of registration
         try {
             out.println("Enter new username: ");
             String uname = in.readLine();
@@ -139,6 +150,8 @@ public class ClientHandler implements Runnable {
     }
 
     private boolean handleLogin() {
+        //handle user login process with the client
+        //output: boolean indicating success or failure of login
         try {
             out.println("Enter username: ");
             String uname = in.readLine();
@@ -163,12 +176,17 @@ public class ClientHandler implements Runnable {
     }
 
     private void handleCommand(String cmd) {
+        //parse and execute a command sent by the client
+        //input: command string from the client
+        //output: none (responses are sent back to the client as needed)
+        //example commands: /create gooba -> "Room 'gooba' created successfully."
         String[] parts = cmd.split(" ", 2);
         String command = parts[0].toLowerCase();
 
         switch (command) {
 
             case "/create": {
+                // Create a new room
                 if (parts.length < 2) {
                     send("Usage: /create <roomname>");
                     return;
@@ -190,7 +208,47 @@ public class ClientHandler implements Runnable {
                 send("Room '" + roomName + "' created successfully.");
                 break;
             }
+            case "/rooms": {
+                // List available rooms
+                send("Available rooms:");
+
+                boolean foundAny = false;
+
+                for (Room room : Server.rooms.values()) {
+
+                    if (!room.canView(permissionLevel)) {
+                        continue;
+                    }
+
+                    foundAny = true;
+                    
+                    boolean canChat = room.canChat(permissionLevel);
+                    boolean isCurrent = room == currentRoom;
+
+                    StringBuilder line = new StringBuilder(" - ");
+                    line.append(room.getName());
+                    line.append(" (").append(room.getMemberCount()).append(" users)");
+
+                    line.append(" (");
+                    line.append(canChat ? "chat ✓" : "view only");
+                    line.append(")");
+
+                    if (isCurrent) {
+                        line.append(" [current]");
+                    }
+
+                    send(line.toString());
+                }
+
+                if (!foundAny) {
+                    send("No rooms are visible to you.");
+                }
+
+                break;
+            }
+
             case "/editperms": {
+                // Edit another user's permission level
                 if (parts.length < 2) {
                     send("Usage: /editperms <username> <level>");
                     return;
@@ -212,7 +270,6 @@ public class ClientHandler implements Runnable {
                     return;
                 }
 
-                // 🔑 OWNER OVERRIDE
                 boolean isOwner = username.equalsIgnoreCase(PermissionManager.ownerUsername);
 
                 UserManager.User target = userManager.getUser(targetName);
@@ -243,6 +300,7 @@ public class ClientHandler implements Runnable {
                 break;
             }
             case "/msg": {
+                // Send a private message to another user
                 if (parts.length < 2) {
                     send("Usage: /msg <user> <message>");
                     return;
@@ -264,13 +322,14 @@ public class ClientHandler implements Runnable {
                 }
 
                 target.lastWhisperFrom = this;
-
+                lastWhisperFrom = target;
                 target.send("[From " + username + "]: " + message);
                 send("[To " + target.getUsername() + "]: " + message);
                 break;
             }
 
             case "/r": {
+                // Reply to the last private message sender
                 if (lastWhisperFrom == null) {
                     send("No one to reply to.");
                     return;
@@ -289,6 +348,7 @@ public class ClientHandler implements Runnable {
             }
 
             case "/join": {
+                // Join a room
                 if (parts.length < 2) {
                     send("Usage: /join <roomname>");
                     return;
@@ -302,7 +362,7 @@ public class ClientHandler implements Runnable {
                     return;
                 }
 
-                // 🚫 VIEW PERMISSION CHECK
+                // view permission check
                 if (!room.canView(permissionLevel)) {
                     send("You do not have permission to view this room.");
                     return;
@@ -318,6 +378,7 @@ public class ClientHandler implements Runnable {
                 break;
             }
             case "/leave": {
+                // Leave the currently connected room
                 if (currentRoom == null) {
                     send("You are not in a room.");
                     return;
@@ -330,6 +391,7 @@ public class ClientHandler implements Runnable {
             }
 
             case "/kick": {
+                // Kick a user (does nothing yet, placeholder)
                 if (!PermissionManager.canPerform(username, permissionLevel, "command.kick")) {
                     send("You do not have permission to kick users.");
                     return;
@@ -339,6 +401,7 @@ public class ClientHandler implements Runnable {
             }
 
             case "/ban": {
+                // Ban a user (you guessed it, placeholder)
                 if (!PermissionManager.canPerform(username, permissionLevel, "command.ban")) {
                     send("You do not have permission to ban users.");
                     return;
@@ -348,16 +411,20 @@ public class ClientHandler implements Runnable {
             }
 
             default:
+                // obvious error message is obvious
                 send("Unknown command: " + command);
         }
     }
 
 
     void send(String msg) {
+        // input: message string to send to the client
+        // output: none
         out.println(msg);
     }
 
     void close() {
+        // clean up and remove client on disconnect 
         Server.remove(this);
         try {
             socket.close();

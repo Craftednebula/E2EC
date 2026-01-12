@@ -13,33 +13,35 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.util.Properties;
-import java.io.FileInputStream;
-import java.util.Properties;
 
 public class Server {
 
     static final Set<ClientHandler> clients = ConcurrentHashMap.newKeySet();
     static final ConcurrentHashMap<String, Room> rooms = new ConcurrentHashMap<>();
 
-    // Config / hardcoded for this dedicated server
+    // Server config
+    // host password is the password clients must provide to connect
     static String HOST_PASSWORD;
+    // BIND_IP : PORT
+    //yeah..
     static int PORT;
+    static String BIND_IP;
+    // CHAT_NAME is the name of the chat server
     static String CHAT_NAME;
+    // OWNER_USERNAME is the username of the server owner, this is a hack to give them all permissions because I am lazy and don't want to make a proper server console
     static String OWNER_USERNAME;
-
-    static final String LOOKUP_HOST = "127.0.0.1";
-    static final int LOOKUP_PORT = 6000;
-
+   
+    //The user manager handles user authentication and storage
     static UserManager userManager;
 
     public static void main(String[] args) throws IOException {
+        // server startup
         ensureConfigFiles();
         loadServerProperties();
         loadRooms();
-        // Load permission definitions
+
         PermissionManager.loadPermissions();
 
-        // Initialize SQL user database (per-chat)
         try {
             userManager = new UserManager("chat.db");
         } catch (Exception e) {
@@ -47,39 +49,41 @@ public class Server {
             return;
         }
 
-        // Register with lookup server
-        registerWithLookupServer();
+        ServerSocket serverSocket =
+        new ServerSocket(PORT, 50, java.net.InetAddress.getByName(BIND_IP));
 
-        ServerSocket serverSocket = new ServerSocket(PORT);
         System.out.println("Chat server running on port " + PORT);
-
+        // Main server loop
         while (true) {
             Socket socket = serverSocket.accept();
-            // ClientHandler now takes the userManager and host password
             ClientHandler handler = new ClientHandler(socket, HOST_PASSWORD, userManager);
             clients.add(handler);
             new Thread(handler).start();
         }
     }
-    private static void ensureConfigFiles() throws IOException {
 
+    /* ================= CONFIG FILES ================= */
+
+    private static void ensureConfigFiles() throws IOException {
+        // create default config files if they don't exist
         // ---------- server.properties ----------
         File file = new File("server.properties");
 
-        if (file.exists()) return;
+        if (!file.exists()) {
+            Properties props = new Properties();
+            props.setProperty("chat.name", "CoolRoom");
+            props.setProperty("bind.ip", "0.0.0.0"); // listen on all interfaces by default
+            props.setProperty("port", "5000");
+            props.setProperty("owner", "admin");
+            props.setProperty("host.password", "secret123");
 
-        System.out.println("server.properties not found, generating default config...");
 
-        Properties props = new Properties();
 
-        // ⚠️ USE LITERALS — NEVER VARIABLES HERE
-        props.setProperty("chat.name", "CoolRoom");
-        props.setProperty("port", "5000");
-        props.setProperty("owner", "admin");
-        props.setProperty("host.password", "secret123");
+            try (FileOutputStream out = new FileOutputStream(file)) {
+                props.store(out, "E2EC Dedicated Server Configuration");
+            }
 
-        try (FileOutputStream out = new FileOutputStream(file)) {
-            props.store(out, "E2EC Dedicated Server Configuration");
+            System.out.println("Generated server.properties");
         }
 
         // ---------- permissions.properties ----------
@@ -87,7 +91,6 @@ public class Server {
         if (!perms.exists()) {
             try (FileWriter fw = new FileWriter(perms)) {
                 fw.write("""
-
                 0.name=Untrusted User
                 0.uploadfiles=false
                 0.changeselfusername=false
@@ -124,6 +127,7 @@ public class Server {
             }
             System.out.println("Generated banned.properties");
         }
+
         // ---------- rooms.properties ----------
         File roomsFile = new File("rooms.properties");
         if (!roomsFile.exists()) {
@@ -139,32 +143,12 @@ public class Server {
             }
             System.out.println("Generated rooms.properties");
         }
-
-    }
-    static void broadcastRoomMessage(Room room, String message) {
-        for (ClientHandler c : clients) {
-
-            // Receiver must be allowed to view the room
-            if (!room.canView(c.getPermissionLevel())) continue;
-
-            c.send(message);
-        }
     }
 
-    private static void registerWithLookupServer() {
-        try (Socket s = new Socket(LOOKUP_HOST, LOOKUP_PORT);
-             PrintWriter out = new PrintWriter(s.getOutputStream(), true);
-             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()))) {
+    /* ================= LOADING ================= */
 
-            out.println("register " + CHAT_NAME + " " + PORT);
-            String resp = in.readLine();
-            System.out.println("LookupServer response: " + resp);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
     private static void loadServerProperties() throws IOException {
+        // load server.properties... cough
         Properties props = new Properties();
 
         try (FileInputStream in = new FileInputStream("server.properties")) {
@@ -172,32 +156,24 @@ public class Server {
         }
 
         CHAT_NAME = props.getProperty("chat.name", "DefaultChat");
+        BIND_IP = props.getProperty("bind.ip", "0.0.0.0");
         PORT = Integer.parseInt(props.getProperty("port", "5000"));
         OWNER_USERNAME = props.getProperty("owner", "admin");
         HOST_PASSWORD = props.getProperty("host.password", "changeme");
 
+
         System.out.println("Loaded server.properties:");
         System.out.println(" Chat Name: " + CHAT_NAME);
+        System.out.println(" Bind IP: " + BIND_IP);
         System.out.println(" Port: " + PORT);
         System.out.println(" Owner: " + OWNER_USERNAME);
-        System.out.println(" Lookup Server: " + LOOKUP_HOST + ":" + LOOKUP_PORT + " (hardcoded)");
     }
+
     static void loadRooms() throws IOException {
+        // load rooms from rooms.properties 
+        // what did you expect?
         Properties props = new Properties();
-        File roomsFile = new File("rooms.properties");
-        if (!roomsFile.exists()) {
-            try (FileWriter fw = new FileWriter(roomsFile)) {
-                fw.write("""
-                0.name=general
-                0.viewingallowed=0,1,100
-                0.chattingallowed=0,1,100
-                0.savehistory=true
-                0.broadcastall=false
-                0.tagmessageswithroom=true
-                """);
-            }
-            System.out.println("Generated rooms.properties");
-        }
+
         try (FileInputStream in = new FileInputStream("rooms.properties")) {
             props.load(in);
         }
@@ -209,41 +185,37 @@ public class Server {
             String name = props.getProperty(index + ".name");
             if (name == null) break;
 
-            Set<Integer> viewing =
-                Room.parsePermissionList(props.getProperty(index + ".viewingallowed"));
-
-            Set<Integer> chatting =
-                Room.parsePermissionList(props.getProperty(index + ".chattingallowed"));
-
-            boolean saveHistory =
-                Boolean.parseBoolean(props.getProperty(index + ".savehistory", "false"));
-
-            boolean broadcastAll =
-                Boolean.parseBoolean(props.getProperty(index + ".broadcastall", "false"));
-
-            boolean tagMessagesWithRoom =
-                Boolean.parseBoolean(props.getProperty(index + ".tagmessageswithroom", "true"));
-
             Room room = new Room(
                 name,
-                viewing,
-                chatting,
-                saveHistory,
-                broadcastAll,
-                tagMessagesWithRoom
+                Room.parsePermissionList(props.getProperty(index + ".viewingallowed")),
+                Room.parsePermissionList(props.getProperty(index + ".chattingallowed")),
+                Boolean.parseBoolean(props.getProperty(index + ".savehistory", "false")),
+                Boolean.parseBoolean(props.getProperty(index + ".broadcastall", "false")),
+                Boolean.parseBoolean(props.getProperty(index + ".tagmessageswithroom", "true"))
             );
 
             rooms.put(name, room);
             index++;
         }
 
-
         System.out.println("Loaded " + rooms.size() + " rooms.");
     }
-    static synchronized void saveRooms() {
-        Properties props = new Properties();
 
+    /* ================= ROOM & CHAT ================= */
+
+    static void broadcastRoomMessage(Room room, String message) {
+        // broadcast a message to all clients in a room who can view it :cool-guy:
+        for (ClientHandler c : clients) {
+            if (!room.canView(c.getPermissionLevel())) continue;
+            c.send(message);
+        }
+    }
+
+    static synchronized void saveRooms() {
+        // save all rooms to rooms.properties
+        Properties props = new Properties();
         int index = 0;
+
         for (Room room : rooms.values()) {
             props.setProperty(index + ".name", room.getName());
             props.setProperty(index + ".viewingallowed", "0,1,100");
@@ -262,12 +234,16 @@ public class Server {
     }
 
     static void broadcast(String message, ClientHandler sender) {
+        // broadcast a message to all clients.
         for (ClientHandler c : clients) {
             c.send(message);
         }
     }
 
     static void remove(ClientHandler handler) {
+        // remove a client from the server
+        // input: ClientHandler (a client)
+        // output: none (removes from clients set and current room)
         clients.remove(handler);
         if (handler.getCurrentRoom() != null) {
             handler.getCurrentRoom().removeMember(handler);
@@ -276,11 +252,12 @@ public class Server {
     }
 
     static Room getRoom(String searchedRoom) {
-        if (rooms.containsKey(searchedRoom)) {
-            return rooms.get(searchedRoom);
-        }
-        return null;
+        // get a room by name
+        // input: room name
+        // output: Room object or null if not found
+        return rooms.get(searchedRoom);
     }
+
     static Room createRoom(
         String name,
         Set<Integer> viewing,
@@ -289,11 +266,12 @@ public class Server {
         boolean broadcastAll,
         boolean tag
     ) {
+        // create a new room
+        // input: room parameters and options 
+        // output: Room object
         Room room = new Room(name, viewing, chatting, saveHistory, broadcastAll, tag);
         rooms.put(name, room);
         Room.saveRoomToProperties(room);
         return room;
     }
-
-
 }

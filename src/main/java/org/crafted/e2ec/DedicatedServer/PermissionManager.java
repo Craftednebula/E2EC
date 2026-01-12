@@ -52,14 +52,20 @@ public class PermissionManager {
         }
     }
 
-    // Check if a user has permission for an action
+    
     public static boolean canPerform(String username, int userLevel, String action) {
+        // Check if a user has permission for an action
+        // input: username, userLevel, and action. obvious naming convention is obvious
+        // output: true if user can perform action, false if not
         if (username.equals(ownerUsername)) return true; // owner bypasses all
         PermissionLevel pl = levels.get(userLevel);
         if (pl == null) return false;
         return pl.actions.getOrDefault(action, false);
     }
     public static String getName(int userLevel) {
+        //get the name of a permission level
+        //input: the permission level number... yeah
+        //output: the name of that permission level (or "Unknown" if not found)
         PermissionLevel pl = levels.get(userLevel);
         pl.name = (pl == null) ? "Unknown" : pl.name;
         return pl.name;
