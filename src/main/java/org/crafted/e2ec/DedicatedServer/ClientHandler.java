@@ -52,20 +52,29 @@ public class ClientHandler implements Runnable {
                 return;
             }
 
-            // Initial choice: login or register
-            out.println("Welcome! Type 'login' to log in or 'register' to create a new account:");
+        boolean authenticated = false;
+        out.println("Welcome! Type 'login' to log in or 'register' to create a new account:");
+        while (!authenticated) {
+            
             String choice = in.readLine();
-            if (choice == null) return;
+            if (choice == null) return; // client disconnected
 
-            if (choice.equalsIgnoreCase("register")) {
-                if (!handleRegistration()) return;
-            } else if (choice.equalsIgnoreCase("login")) {
-                if (!handleLogin()) return;
+            if (choice.equalsIgnoreCase("login")) {
+                authenticated = handleLogin();
+                if (!authenticated) {
+                    // tell client login failed, then loop again for choice
+                    out.println("Login failed. Try again or type 'register' to create an account.");
+                }
+            } else if (choice.equalsIgnoreCase("register")) {
+                authenticated = handleRegistration();
+                if (!authenticated) {
+                    out.println("Registration failed. Try a different username.");
+                }
             } else {
-                out.println("Unknown option. Disconnecting.");
-                socket.close();
-                return;
+                out.println("Unknown option. Try again.");
             }
+}
+
 
             // Logged in successfully
             out.println("OK: Logged inj"+Server.CHAT_NAME);
@@ -160,7 +169,6 @@ public class ClientHandler implements Runnable {
 
             UserManager.User user = userManager.login(uname, pass);
             if (user == null) {
-                out.println("ERROR: Invalid username or password.");
                 return false;
             }
 

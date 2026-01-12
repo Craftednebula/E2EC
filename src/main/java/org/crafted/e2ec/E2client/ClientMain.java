@@ -17,8 +17,8 @@ public class ClientMain {
         SwingUtilities.invokeLater(() -> {
             // schedules a task to be executed on the Event Dispatch Thread (EDT) at some point in the future
             try {
-                ChatClient client = new ChatClient();
-                client.start();
+                ChatManagerWindow manager = new ChatManagerWindow();
+                manager.show();
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(
                         null,

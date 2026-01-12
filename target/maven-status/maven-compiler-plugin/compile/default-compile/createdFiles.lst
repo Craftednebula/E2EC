@@ -1,9 +1,14 @@
 org\crafted\e2ec\E2client\LoginDialogs.class
 org\crafted\e2ec\E2client\ChatWindow.class
+org\crafted\e2ec\E2client\ChatClient$DialogHandshakeProvider.class
 org\crafted\e2ec\DedicatedServer\UserManager$User.class
+org\crafted\e2ec\E2client\ChatClient$SavedHandshakeProvider.class
+org\crafted\e2ec\E2client\ChatManagerWindow.class
 org\crafted\e2ec\DedicatedServer\UserManager.class
+org\crafted\e2ec\E2client\ChatClient$HandshakeProvider.class
 org\crafted\e2ec\DedicatedServer\PermissionManager.class
 org\crafted\e2ec\DedicatedServer\Server.class
+org\crafted\e2ec\E2client\ChatManagerWindow$ChatEntry.class
 org\crafted\e2ec\E2client\RoomBrowserWindow$2.class
 org\crafted\e2ec\DedicatedServer\Room.class
 org\crafted\e2ec\E2client\RoomBrowserWindow.class
