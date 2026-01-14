@@ -22,7 +22,7 @@ public class ChatClient {
     /* ===================== ENTRY ===================== */
 
     public void start() throws Exception {
-
+        // starts the chat client by prompting for server address and handling handshak
         address = LoginDialogs.askServerAddress();
         if (address == null) return;
 
@@ -36,6 +36,10 @@ public class ChatClient {
     /* ===================== CONNECT ===================== */
 
     private void connect(String address) throws Exception {
+        // connects to the chat server at the given address
+        // input: address in the format "host:port"
+        // output: none (initializes in and out streams)
+
         String[] parts = address.split(":");
         if (parts.length != 2)
             throw new IllegalArgumentException("Invalid address format");
@@ -50,12 +54,18 @@ public class ChatClient {
 
     /* ===================== HANDSHAKE ===================== */
     public interface HandshakeProvider {
+        // provides responses to server prompts during handshake
+        // input: server prompt string
+        // output: client response string
         String respond(String serverPrompt) throws Exception;
     }
     public class DialogHandshakeProvider implements HandshakeProvider {
-
+        // uses dialog boxes to get user input for server prompts
         @Override
         public String respond(String serverLine) throws Exception {
+            // decide which dialog to show based on server prompt
+            // input: server prompt string
+            // output: user input string
             String response;
             if (serverLine.toLowerCase().contains("login")
                     && serverLine.toLowerCase().contains("register")) {
@@ -71,7 +81,9 @@ public class ChatClient {
         }
     }
     public class SavedHandshakeProvider implements HandshakeProvider {
-
+        // uses saved credentials from a ChatEntry to respond to server prompts
+        // input: ChatEntry with saved credentials
+        // output: client response string based on prompts
         private final ChatManagerWindow.ChatEntry entry;
         private boolean loginAttempted = false;
         private boolean switchedToRegister = false;
@@ -82,6 +94,9 @@ public class ChatClient {
 
         @Override
         public String respond(String serverPrompt) throws Exception {
+            // respond to server prompts using saved credentials
+            // input: server prompt string
+            // output: client response string
             String p = serverPrompt.toLowerCase();
 
             // Host password prompt
@@ -131,6 +146,9 @@ public class ChatClient {
 
 
     private void handleHandshake(HandshakeProvider provider) throws Exception {
+        // handle the handshake process with the server using the provided HandshakeProvider
+        // input: HandshakeProvider to get responses for server prompts
+        // output: none (completes handshake and sets chatName)
         while (true) {
             String serverLine = in.readLine();
             if (serverLine == null)
@@ -153,6 +171,7 @@ public class ChatClient {
     /* ===================== WINDOWS ===================== */
 
     private void showRoomBrowser() {
+        // show the room browser window
         SwingUtilities.invokeLater(() -> {
             inRoom = false;
 
@@ -167,6 +186,8 @@ public class ChatClient {
     }
 
     private void showChatWindow(String room) {
+        // show the chat window for the given room
+        // input: room name
         SwingUtilities.invokeLater(() -> {
             inRoom = true;
 
@@ -186,6 +207,7 @@ public class ChatClient {
 
     /* ===================== READER ===================== */
     public void startWithSavedChat(ChatManagerWindow.ChatEntry entry) throws Exception {
+        // starts the chat client using saved chat entry credentials
         this.address = entry.address;
 
         connect(entry.address);
@@ -199,6 +221,7 @@ public class ChatClient {
     }
 
     private void startReaderThread() {
+        // starts a background thread to read messages from the server
         new Thread(() -> {
             try {
                 String msg;
