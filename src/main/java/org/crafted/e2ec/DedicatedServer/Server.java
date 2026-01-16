@@ -34,7 +34,7 @@ public class Server {
 
         try {
             userManager = new UserManager("chat.db");
-        } catch (IOException | SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return;
         }

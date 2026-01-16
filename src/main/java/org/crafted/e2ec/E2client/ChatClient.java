@@ -259,4 +259,169 @@ public class ChatClient {
             }
         }, "Chat-Reader").start();
     }
+    // TESTS
+    private static boolean testHandshake() {
+        System.out.print("[TEST] HandshakeProvider basic flow ... ");
+
+        try {
+            ChatClient client = new ChatClient();
+
+            String serverScript =
+                    "Login or Register?\n" +
+                    "Username:\n" +
+                    "Password:\n" +
+                    "OK: Logged injtestUser\n";
+
+            client.in = new BufferedReader(new InputStreamReader(
+                    new java.io.ByteArrayInputStream(serverScript.getBytes())
+            ));
+            client.out = new PrintWriter(new java.io.StringWriter(), true);
+
+            HandshakeProvider provider = prompt -> {
+                if (prompt.toLowerCase().contains("login")) return "login";
+                if (prompt.toLowerCase().contains("username")) return "testUser";
+                if (prompt.toLowerCase().contains("password")) return "testPass";
+                return "";
+            };
+
+            client.handleHandshake(provider);
+
+            if (!"testUser".equals(client.chatName))
+                throw new AssertionError("chatName not set correctly");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+private static boolean testShowRoomBrowser() {
+    System.out.print("[TEST] showRoomBrowser() ... ");
+
+    try {
+        ChatClient client = new ChatClient();
+        client.chatName = "tester";
+        client.address = "localhost:1234";
+        client.out = new PrintWriter(System.out, true);
+
+        client.showRoomBrowser();
+        Thread.sleep(50); // allow Swing invokeLater
+
+        if (client.inRoom)
+            throw new AssertionError("Client should not be in a room");
+
+        System.out.println("PASS");
+        return true;
+
+    } catch (Throwable t) {
+        System.out.println("FAIL");
+        t.printStackTrace();
+        return false;
+    }
+}
+
+private static boolean testSavedHandshakeProvider() {
+    System.out.print("[TEST] SavedHandshakeProvider ... ");
+
+    try {
+        ChatClient client = new ChatClient();
+
+        ChatManagerWindow.ChatEntry entry =
+                new ChatManagerWindow.ChatEntry("entryname", "addr", "hostpass", "user", "pass");
+
+        SavedHandshakeProvider p = client.new SavedHandshakeProvider(entry);
+
+        if (!"login".equals(p.respond("Login or Register?")))
+            throw new AssertionError("Expected login");
+
+        if (!"user".equals(p.respond("Username:")))
+            throw new AssertionError("Wrong username");
+
+        if (!"pass".equals(p.respond("Password:")))
+            throw new AssertionError("Wrong password");
+
+        System.out.println("PASS");
+        return true;
+
+    } catch (Throwable t) {
+        System.out.println("FAIL");
+        t.printStackTrace();
+        return false;
+    }
+}
+private static boolean testShowChatWindow() {
+    System.out.print("[TEST] showChatWindow() ... ");
+
+    try {
+        ChatClient client = new ChatClient();
+        client.chatName = "tester";
+        client.address = "localhost:1234";
+        client.out = new PrintWriter(System.out, true);
+
+        client.showChatWindow("TestRoom");
+        SwingUtilities.invokeAndWait(() -> {}); // flush EDT
+
+        if (!client.inRoom)
+            throw new AssertionError("Client should be in room");
+
+
+        System.out.println("PASS");
+        return true;
+
+    } catch (Throwable t) {
+        System.out.println("FAIL");
+        t.printStackTrace();
+        return false;
+    }
+}
+private static boolean testReaderThreadLogic() {
+    System.out.print("[TEST] Reader thread logic ... ");
+
+    try {
+        ChatClient client = new ChatClient();
+
+        String serverData =
+                "Joined room: Room1\n" +
+                "Hello\n" +
+                "You left the room.\n";
+
+        client.in = new BufferedReader(new InputStreamReader(
+                new java.io.ByteArrayInputStream(serverData.getBytes())
+        ));
+        client.out = new PrintWriter(System.out, true);
+
+        client.startReaderThread();
+        Thread.sleep(200);
+
+        System.out.println("PASS");
+        return true;
+
+    } catch (Throwable t) {
+        System.out.println("FAIL");
+        t.printStackTrace();
+        return false;
+    }
+}
+public static void runAllTests() {
+    System.out.println("ChatClient tests");
+
+    int passed = 0;
+    int failed = 0;
+
+    if (testHandshake()) passed++; else failed++;
+    if (testSavedHandshakeProvider()) passed++; else failed++;
+    if (testShowRoomBrowser()) passed++; else failed++;
+    if (testShowChatWindow()) passed++; else failed++;
+    if (testReaderThreadLogic()) passed++; else failed++;
+
+    System.out.println();
+    System.out.println("test summary");
+    System.out.println("Passed: " + passed);
+    System.out.println("Failed: " + failed);
+}
+
+
 }

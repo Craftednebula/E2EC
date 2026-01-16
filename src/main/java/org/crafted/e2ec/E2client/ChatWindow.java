@@ -1,8 +1,20 @@
 package org.crafted.e2ec.E2client;
 
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Font;
 import java.io.PrintWriter;
+import java.io.StringWriter;
+
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 
 public class ChatWindow {
 
@@ -112,4 +124,197 @@ public class ChatWindow {
             chatArea.setCaretPosition(chatArea.getDocument().getLength());
         });
     }
+    //tests
+    public static void runAllTests() {
+        System.out.println("ChatWindow tests");
+
+        int passed = 0;
+        int failed = 0;
+
+        if (testShowWindow()) passed++; else failed++;
+        if (testSetRoom()) passed++; else failed++;
+        if (testClearRoom()) passed++; else failed++;
+        if (testAppendMessage()) passed++; else failed++;
+        if (testSendAction()) passed++; else failed++;
+        if (testCloseWindow()) passed++; else failed++;
+
+        System.out.println();
+        System.out.println("test summary");
+        System.out.println("Passed: " + passed);
+        System.out.println("Failed: " + failed);
+    }
+    private static boolean testShowWindow() {
+        System.out.print("[TEST] show() initializes window ... ");
+
+        try {
+            ChatWindow window = new ChatWindow(
+                    new PrintWriter(System.out, true),
+                    "Tester",
+                    "localhost:1234"
+            );
+
+            SwingUtilities.invokeAndWait(window::show);
+
+            if (window.frame == null)
+                throw new AssertionError("Frame not created");
+
+            if (!window.frame.isVisible())
+                throw new AssertionError("Frame not visible");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testSetRoom() {
+        System.out.print("[TEST] setRoom() ... ");
+
+        try {
+            ChatWindow window = new ChatWindow(
+                    new PrintWriter(System.out, true),
+                    "Tester",
+                    "localhost"
+            );
+
+            SwingUtilities.invokeAndWait(window::show);
+            window.setRoom("RoomA");
+
+            SwingUtilities.invokeAndWait(() -> {});
+
+            if (!window.roomLabel.getText().equals("Room: RoomA"))
+                throw new AssertionError("Room label incorrect");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testClearRoom() {
+        System.out.print("[TEST] clearRoom() ... ");
+
+        try {
+            ChatWindow window = new ChatWindow(
+                    new PrintWriter(System.out, true),
+                    "Tester",
+                    "localhost"
+            );
+
+            SwingUtilities.invokeAndWait(window::show);
+            window.setRoom("RoomA");
+            window.clearRoom();
+
+            SwingUtilities.invokeAndWait(() -> {});
+
+            if (!window.roomLabel.getText().equals("Room: none"))
+                throw new AssertionError("Room not cleared");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testAppendMessage() {
+        System.out.print("[TEST] append() ... ");
+
+        try {
+            ChatWindow window = new ChatWindow(
+                    new PrintWriter(System.out, true),
+                    "Tester",
+                    "localhost"
+            );
+
+            SwingUtilities.invokeAndWait(window::show);
+            window.append("Hello");
+            window.append("World");
+
+            SwingUtilities.invokeAndWait(() -> {});
+
+            String text = window.chatArea.getText();
+
+            if (!text.contains("Hello\n"))
+                throw new AssertionError("Missing message");
+
+            if (!text.endsWith("World\n"))
+                throw new AssertionError("Caret not moved");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testSendAction() {
+        System.out.print("[TEST] send action ... ");
+
+        try {
+            StringWriter writer = new StringWriter();
+            PrintWriter out = new PrintWriter(writer, true);
+
+            ChatWindow window = new ChatWindow(out, "Tester", "localhost");
+
+            SwingUtilities.invokeAndWait(window::show);
+
+            window.inputField.setText("Test message");
+            window.inputField.postActionEvent();
+
+            SwingUtilities.invokeAndWait(() -> {});
+
+            if (!writer.toString().contains("Test message"))
+                throw new AssertionError("Message not sent");
+
+            if (!window.inputField.getText().isEmpty())
+                throw new AssertionError("Input not cleared");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testCloseWindow() {
+        System.out.print("[TEST] close() ... ");
+
+        try {
+            ChatWindow window = new ChatWindow(
+                    new PrintWriter(System.out, true),
+                    "Tester",
+                    "localhost"
+            );
+
+            SwingUtilities.invokeAndWait(window::show);
+            window.close();
+
+            SwingUtilities.invokeAndWait(() -> {});
+
+            if (window.frame.isDisplayable())
+                throw new AssertionError("Frame not disposed");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+
 }

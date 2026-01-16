@@ -3,6 +3,7 @@ package org.crafted.e2ec.E2client;
 import java.awt.BorderLayout;
 import java.awt.Font;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -157,4 +158,177 @@ public class RoomBrowserWindow {
             out.println("/rooms");
         }
     }
+    //tests
+    public static void runAllTests() {
+        System.out.println("RoomBrowserWindow tests");
+
+        int passed = 0;
+        int failed = 0;
+
+        if (testShowWindow()) passed++; else failed++;
+        if (testRequestRoomList()) passed++; else failed++;
+        if (testUpdateRoom()) passed++; else failed++;
+        if (testJoinSelected()) passed++; else failed++;
+        if (testCloseWindow()) passed++; else failed++;
+
+        System.out.println();
+        System.out.println("test summary");
+        System.out.println("Passed: " + passed);
+        System.out.println("Failed: " + failed);
+    }
+    private static boolean testShowWindow() {
+        System.out.print("[TEST] show() initializes window ... ");
+
+        try {
+            RoomBrowserWindow window = new RoomBrowserWindow(
+                    new PrintWriter(System.out, true),
+                    "Tester",
+                    "localhost:1234"
+            );
+
+            SwingUtilities.invokeAndWait(window::show);
+
+            if (window.frame == null)
+                throw new AssertionError("Frame not created");
+
+            if (!window.frame.isVisible())
+                throw new AssertionError("Frame not visible");
+
+            if (window.refreshTimer == null || !window.refreshTimer.isRunning())
+                throw new AssertionError("Refresh timer not running");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testRequestRoomList() {
+        System.out.print("[TEST] requestRoomList() ... ");
+
+        try {
+            StringWriter writer = new StringWriter();
+            PrintWriter out = new PrintWriter(writer, true);
+
+            RoomBrowserWindow window = new RoomBrowserWindow(out, "Tester", "localhost");
+
+            window.requestRoomList();
+
+            if (!writer.toString().contains("/rooms"))
+                throw new AssertionError("Did not send /rooms command");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testUpdateRoom() {
+        System.out.print("[TEST] updateRoom() ... ");
+
+        try {
+            RoomBrowserWindow window = new RoomBrowserWindow(
+                    new PrintWriter(System.out, true),
+                    "Tester",
+                    "localhost"
+            );
+
+            SwingUtilities.invokeAndWait(window::show);
+
+            window.updateRoom("RoomA (2 users)");
+            window.updateRoom("RoomB (5 users)");
+
+            SwingUtilities.invokeAndWait(() -> {});
+
+            if (window.listModel.size() != 2)
+                throw new AssertionError("Incorrect room count");
+
+            if (!window.listModel.contains("RoomA (2 users)"))
+                throw new AssertionError("RoomA missing");
+
+            if (!window.listModel.contains("RoomB (5 users)"))
+                throw new AssertionError("RoomB missing");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testJoinSelected() {
+        System.out.print("[TEST] joinSelected() ... ");
+
+        try {
+            StringWriter writer = new StringWriter();
+            PrintWriter out = new PrintWriter(writer, true);
+
+            RoomBrowserWindow window = new RoomBrowserWindow(out, "Tester", "localhost");
+
+            SwingUtilities.invokeAndWait(window::show);
+
+            window.updateRoom("RoomA (3 users)");
+            SwingUtilities.invokeAndWait(() -> {});
+
+            window.roomList.setSelectedIndex(0);
+
+            // invoke private method via reflection
+            var m = RoomBrowserWindow.class.getDeclaredMethod("joinSelected");
+            m.setAccessible(true);
+            m.invoke(window);
+
+            if (!writer.toString().contains("/join RoomA"))
+                throw new AssertionError("Join command not sent");
+
+            if (window.refreshTimer != null && window.refreshTimer.isRunning())
+                throw new AssertionError("Refresh timer not stopped");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    private static boolean testCloseWindow() {
+        System.out.print("[TEST] close() ... ");
+
+        try {
+            RoomBrowserWindow window = new RoomBrowserWindow(
+                    new PrintWriter(System.out, true),
+                    "Tester",
+                    "localhost"
+            );
+
+            SwingUtilities.invokeAndWait(window::show);
+            window.close();
+
+            SwingUtilities.invokeAndWait(() -> {});
+
+            if (window.frame.isDisplayable())
+                throw new AssertionError("Frame not disposed");
+
+            if (window.refreshTimer != null && window.refreshTimer.isRunning())
+                throw new AssertionError("Timer not stopped");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+
 }

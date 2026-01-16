@@ -1,10 +1,27 @@
 package org.crafted.e2ec.E2client;
 
-import javax.swing.*;
-import java.awt.*;
-import java.io.*;
-import java.util.*;
-import java.util.List;
+import java.awt.BorderLayout;
+import java.awt.GridLayout;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Properties;
+
+import javax.swing.DefaultListModel;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
+import javax.swing.JTextField;
+import javax.swing.ListSelectionModel;
 
 public class ChatManagerWindow {
 
@@ -188,4 +205,174 @@ public class ChatManagerWindow {
             e.printStackTrace();
         }
     }
+    // tests
+    private static boolean testChatEntryCreation() {
+        System.out.print("[TEST] ChatEntry creation ... ");
+
+        try {
+            ChatEntry entry = new ChatEntry(
+                    "TestChat",
+                    "127.0.0.1:1234",
+                    "hostPass",
+                    "user",
+                    "pass"
+            );
+
+            if (!entry.name.equals("TestChat")) throw new AssertionError();
+            if (!entry.address.equals("127.0.0.1:1234")) throw new AssertionError();
+            if (!entry.hostPassword.equals("hostPass")) throw new AssertionError();
+            if (!entry.username.equals("user")) throw new AssertionError();
+            if (!entry.userPassword.equals("pass")) throw new AssertionError();
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+private static boolean testSaveAndLoadChats() {
+    System.out.print("[TEST] saveChats() / loadChats() ... ");
+
+    try {
+        ChatManagerWindow window = new ChatManagerWindow();
+
+        File tempFile = File.createTempFile("chat-test", ".properties");
+        tempFile.deleteOnExit();
+
+        // inject test file
+        java.lang.reflect.Field fileField =
+                ChatManagerWindow.class.getDeclaredField("chatFile");
+        fileField.setAccessible(true);
+        fileField.set(window, tempFile);
+
+        // prepare test data
+        window.savedChats.clear();
+        window.savedChats.put("A",
+                new ChatEntry("A", "addr1", "hp1", "u1", "p1"));
+        window.savedChats.put("B",
+                new ChatEntry("B", "addr2", "hp2", "u2", "p2"));
+
+        window.saveChats();
+
+        // ===== LOAD PHASE =====
+        ChatManagerWindow loaded = new ChatManagerWindow();
+
+        // inject SAME temp file
+        fileField.set(loaded, tempFile);
+
+        // IMPORTANT:
+        // constructor already called loadChats()
+        // so we must reset state before reloading
+        loaded.savedChats.clear();
+        loaded.loadChats();
+
+        if (loaded.savedChats.size() != 2)
+            throw new AssertionError("Incorrect number of chats loaded");
+
+        if (!loaded.savedChats.containsKey("A"))
+            throw new AssertionError("Missing chat A");
+
+        if (!loaded.savedChats.containsKey("B"))
+            throw new AssertionError("Missing chat B");
+
+        System.out.println("PASS");
+        return true;
+
+    } catch (Throwable t) {
+        System.out.println("FAIL");
+        t.printStackTrace();
+        return false;
+    }
+}
+
+    private static boolean testConstructorLoadsChats() {
+        System.out.print("[TEST] constructor loads chats ... ");
+
+        try {
+            File tempFile = File.createTempFile("chat-test", ".properties");
+            tempFile.deleteOnExit();
+
+            Properties props = new Properties();
+            props.setProperty("X", "addr;hp;u;p");
+
+            try (FileOutputStream out = new FileOutputStream(tempFile)) {
+                props.store(out, "test");
+            }
+
+            ChatManagerWindow window = new ChatManagerWindow();
+
+            java.lang.reflect.Field fileField =
+                    ChatManagerWindow.class.getDeclaredField("chatFile");
+            fileField.setAccessible(true);
+            fileField.set(window, tempFile);
+
+            window.loadChats();
+
+            if (!window.savedChats.containsKey("X"))
+                throw new AssertionError("Chat not loaded");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+
+    private static boolean testRefreshList() {
+        System.out.print("[TEST] refreshList() ... ");
+
+        try {
+            ChatManagerWindow window = new ChatManagerWindow();
+
+            window.chatListModel = new DefaultListModel<>();
+            window.savedChats.clear();
+
+            window.savedChats.put("Chat1",
+                    new ChatEntry("Chat1", "", "", "", ""));
+            window.savedChats.put("Chat2",
+                    new ChatEntry("Chat2", "", "", "", ""));
+
+            window.refreshList();
+
+            if (window.chatListModel.size() != 2)
+                throw new AssertionError("List size mismatch");
+
+            if (!window.chatListModel.contains("Chat1"))
+                throw new AssertionError("Chat1 missing");
+
+            if (!window.chatListModel.contains("Chat2"))
+                throw new AssertionError("Chat2 missing");
+
+            System.out.println("PASS");
+            return true;
+
+        } catch (Throwable t) {
+            System.out.println("FAIL");
+            t.printStackTrace();
+            return false;
+        }
+    }
+    public static void runAllTests() {
+    System.out.println("ChatManagerWindow tests");
+
+    int passed = 0;
+    int failed = 0;
+
+    if (testChatEntryCreation()) passed++; else failed++;
+    if (testSaveAndLoadChats()) passed++; else failed++;
+    if (testRefreshList()) passed++; else failed++;
+    if (testConstructorLoadsChats()) passed++; else failed++;
+
+    System.out.println();
+    System.out.println("test summary");
+    System.out.println("Passed: " + passed);
+    System.out.println("Failed: " + failed);
+}
+
 }

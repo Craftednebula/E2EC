@@ -1,21 +1,19 @@
 package org.crafted.e2ec.E2client;
 
-import javax.swing.*;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 public class ClientMain {
 
     public static void main(String[] args) {
-        // entry point for the chat client application
-        // initializes and starts the ChatClient
-        // cough cough
-        // cough
-        // COUGH
-        // COUGH cough COUGH
-        // cough
-        // ahem
-        // excuse me
+
+        // run tests.. i hate tests
+        //ChatClient.runAllTests();
+        //ChatManagerWindow.runAllTests();
+        //ChatWindow.runAllTests();
+        //RoomBrowserWindow.runAllTests();
+
         SwingUtilities.invokeLater(() -> {
-            // schedules a task to be executed on the Event Dispatch Thread (EDT) at some point in the future
             try {
                 ChatManagerWindow manager = new ChatManagerWindow();
                 manager.show();
