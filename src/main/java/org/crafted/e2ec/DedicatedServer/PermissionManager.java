@@ -67,7 +67,7 @@ public class PermissionManager {
         //input: the permission level number... yeah
         //output: the name of that permission level (or "Unknown" if not found)
         PermissionLevel pl = levels.get(userLevel);
-        pl.name = (pl == null) ? "Unknown" : pl.name;
+        if (pl == null) return "Unknown";
         return pl.name;
     }
 }

@@ -1,10 +1,22 @@
 package org.crafted.e2ec.E2client;
 
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Font;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.swing.BoxLayout;
+import javax.swing.DefaultListModel;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 public class RoomBrowserWindow {
 
@@ -36,10 +48,31 @@ public class RoomBrowserWindow {
         chatLabel.setFont(chatLabel.getFont().deriveFont(Font.BOLD));
 
         JLabel roomLabel = new JLabel("Room: none");
+        // Disconnect button (new)
+        JButton disconnect = new JButton("Disconnect");
+        disconnect.addActionListener(e -> {
+            try {
+                if (out != null) {
+                    out.println("/quit"); // optional: tell server you are disconnecting
+                }
+            } catch (Exception ignored) {}
 
-        JPanel top = new JPanel(new GridLayout(2, 1));
-        top.add(chatLabel);
-        top.add(roomLabel);
+            // Close this chat window
+            close();
+
+            // Open ChatManagerWindow
+            SwingUtilities.invokeLater(() -> new ChatManagerWindow().show());
+        });
+        JPanel labels = new JPanel();
+        labels.setLayout(new BoxLayout(labels, BoxLayout.Y_AXIS));
+        labels.add(chatLabel);
+        labels.add(roomLabel);
+
+        JPanel top = new JPanel(new BorderLayout(5, 5));
+        top.add(labels, BorderLayout.WEST);
+        top.add(disconnect, BorderLayout.EAST);
+
+
 
         /* ---------- ROOM LIST ---------- */
         listModel = new DefaultListModel<>();

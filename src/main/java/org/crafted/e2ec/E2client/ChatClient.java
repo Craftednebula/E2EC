@@ -1,10 +1,13 @@
 package org.crafted.e2ec.E2client;
 
-import javax.swing.*;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.ArrayDeque;
-import java.util.Queue;
+
+import javax.swing.SwingUtilities;
+
 
 public class ChatClient {
 
@@ -13,7 +16,7 @@ public class ChatClient {
 
     private String chatName;
     private String address;
-
+    private Socket socket;
     private RoomBrowserWindow roomBrowser;
     private ChatWindow chatWindow;
 
@@ -47,10 +50,11 @@ public class ChatClient {
         String host = parts[0].trim();
         int port = Integer.parseInt(parts[1].trim());
 
-        Socket socket = new Socket(host, port);
+        socket = new Socket(host, port);  // SAVE the socket
         out = new PrintWriter(socket.getOutputStream(), true);
         in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
     }
+
 
     /* ===================== HANDSHAKE ===================== */
     public interface HandshakeProvider {
@@ -142,8 +146,7 @@ public class ChatClient {
         }
     }
 
-
-
+    
 
     private void handleHandshake(HandshakeProvider provider) throws Exception {
         // handle the handshake process with the server using the provided HandshakeProvider

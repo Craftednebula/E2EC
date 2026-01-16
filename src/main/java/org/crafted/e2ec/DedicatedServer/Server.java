@@ -1,41 +1,31 @@
 package org.crafted.e2ec.DedicatedServer;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
 
-    static final Set<ClientHandler> clients = ConcurrentHashMap.newKeySet();
+    // All connected sessions
+    static final Set<ClientSession> clients = ConcurrentHashMap.newKeySet();
     static final ConcurrentHashMap<String, Room> rooms = new ConcurrentHashMap<>();
 
-    // Server config
-    // host password is the password clients must provide to connect
     static String HOST_PASSWORD;
-    // BIND_IP : PORT
-    //yeah..
     static int PORT;
     static String BIND_IP;
-    // CHAT_NAME is the name of the chat server
     static String CHAT_NAME;
-    // OWNER_USERNAME is the username of the server owner, this is a hack to give them all permissions because I am lazy and don't want to make a proper server console
     static String OWNER_USERNAME;
-   
-    //The user manager handles user authentication and storage
+
     static UserManager userManager;
 
     public static void main(String[] args) throws IOException {
-        // server startup
         ensureConfigFiles();
         loadServerProperties();
         loadRooms();
@@ -44,25 +34,104 @@ public class Server {
 
         try {
             userManager = new UserManager("chat.db");
-        } catch (Exception e) {
+        } catch (IOException | SQLException e) {
             e.printStackTrace();
             return;
         }
 
         ServerSocket serverSocket =
-        new ServerSocket(PORT, 50, java.net.InetAddress.getByName(BIND_IP));
+                new ServerSocket(PORT, 50, java.net.InetAddress.getByName(BIND_IP));
 
         System.out.println("Chat server running on port " + PORT);
-        // Main server loop
+
         while (true) {
             Socket socket = serverSocket.accept();
-            ClientHandler handler = new ClientHandler(socket, HOST_PASSWORD, userManager);
-            clients.add(handler);
-            new Thread(handler).start();
+
+            // wrap socket in concrete ClientIO
+            ClientIO io = new SocketClientIO(socket);
+
+            // create concrete server facade
+            ServerFacade serverFacade = new ServerFacadeImpl();
+
+            // create session
+            ClientSession session = new ClientSession(io, HOST_PASSWORD, userManager, serverFacade);
+
+            // add session (client)
+            clients.add(session);
+
+            // start session in new thread
+            new Thread(() -> {
+                // this might be horrible for cpu usage
+                try {
+                    session.start();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    serverFacade.removeClient(session);
+                }
+            }).start();
+
         }
     }
 
-    /* ================= CONFIG FILES ================= */
+    /* ================= ROOM & CHAT ================= */
+
+    static void broadcastRoomMessage(Room room, String message) {
+        // send message to all clients in the room who can view it
+        // input : Room object, message string
+        // output: none
+        for (RoomMember m : clients) {
+            if (!room.canView(m.getPermissionLevel())) continue;
+            m.send(message);
+        }
+    }
+
+    static void broadcast(String message, ClientSession sender) {
+        // send message to all connected clients
+        // input : message string, sender ClientSession
+        // output: none
+        for (RoomMember m : clients) {
+            m.send(message);
+        }
+    }
+
+    public static void removeClient(ClientSession session) {
+        // removes a client from the server
+        // input : ClientSession object
+        // output: none
+        clients.remove(session);
+        if (session.getCurrentRoom() != null) {
+            session.getCurrentRoom().removeMember(session);
+        }
+        if (session.getUsername() != null) {
+            broadcast(session.getUsername() + " left the chat.", session);
+        }
+    }
+
+
+    static Room getRoom(String searchedRoom) {
+        //room getter
+        return rooms.get(searchedRoom);
+    }
+
+    static Room createRoom(
+            String name,
+            Set<Integer> viewing,
+            Set<Integer> chatting,
+            boolean saveHistory,
+            boolean broadcastAll,
+            boolean tag
+    ) {
+        // creates a new room and adds it to the server
+        // input : room parameters
+        // output: created Room object
+        Room room = new Room(name, viewing, chatting, saveHistory, broadcastAll, tag);
+        rooms.put(name, room);
+        Room.saveRoomToProperties(room);
+        return room;
+    }
+
+    /* ----------------- config files ----------------- */
 
     private static void ensureConfigFiles() throws IOException {
         // create default config files if they don't exist
@@ -145,7 +214,7 @@ public class Server {
         }
     }
 
-    /* ================= LOADING ================= */
+    /* ---------------- loading ---------------- */
 
     private static void loadServerProperties() throws IOException {
         // load server.properties... cough
@@ -199,79 +268,5 @@ public class Server {
         }
 
         System.out.println("Loaded " + rooms.size() + " rooms.");
-    }
-
-    /* ================= ROOM & CHAT ================= */
-
-    static void broadcastRoomMessage(Room room, String message) {
-        // broadcast a message to all clients in a room who can view it :cool-guy:
-        for (ClientHandler c : clients) {
-            if (!room.canView(c.getPermissionLevel())) continue;
-            c.send(message);
-        }
-    }
-
-    static synchronized void saveRooms() {
-        // save all rooms to rooms.properties
-        Properties props = new Properties();
-        int index = 0;
-
-        for (Room room : rooms.values()) {
-            props.setProperty(index + ".name", room.getName());
-            props.setProperty(index + ".viewingallowed", "0,1,100");
-            props.setProperty(index + ".chattingallowed", "0,1,100");
-            props.setProperty(index + ".savehistory", "true");
-            props.setProperty(index + ".broadcastall", "true");
-            props.setProperty(index + ".tagmessageswithroom", "true");
-            index++;
-        }
-
-        try (FileOutputStream out = new FileOutputStream("rooms.properties")) {
-            props.store(out, "E2EC Rooms Configuration");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    static void broadcast(String message, ClientHandler sender) {
-        // broadcast a message to all clients.
-        for (ClientHandler c : clients) {
-            c.send(message);
-        }
-    }
-
-    static void remove(ClientHandler handler) {
-        // remove a client from the server
-        // input: ClientHandler (a client)
-        // output: none (removes from clients set and current room)
-        clients.remove(handler);
-        if (handler.getCurrentRoom() != null) {
-            handler.getCurrentRoom().removeMember(handler);
-        }
-        broadcast(handler.getUsername() + " left the chat.", handler);
-    }
-
-    static Room getRoom(String searchedRoom) {
-        // get a room by name
-        // input: room name
-        // output: Room object or null if not found
-        return rooms.get(searchedRoom);
-    }
-
-    static Room createRoom(
-        String name,
-        Set<Integer> viewing,
-        Set<Integer> chatting,
-        boolean saveHistory,
-        boolean broadcastAll,
-        boolean tag
-    ) {
-        // create a new room
-        // input: room parameters and options 
-        // output: Room object
-        Room room = new Room(name, viewing, chatting, saveHistory, broadcastAll, tag);
-        rooms.put(name, room);
-        Room.saveRoomToProperties(room);
-        return room;
     }
 }

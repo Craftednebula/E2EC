@@ -10,8 +10,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Room {
-    String name;
-    Set<ClientHandler> members = ConcurrentHashMap.newKeySet();
+
+    private final String name;
+    private final Set<RoomMember> members = ConcurrentHashMap.newKeySet();
 
     private final Set<Integer> viewingAllowed;
     private final Set<Integer> chattingAllowed;
@@ -21,8 +22,6 @@ public class Room {
     private final boolean tagMessagesWithRoom;
 
     public Room(
-        // room constructor
-        // just read the names, they're obvious
         String name,
         Set<Integer> viewingAllowed,
         Set<Integer> chattingAllowed,
@@ -30,8 +29,6 @@ public class Room {
         boolean broadcastAll,
         boolean tagMessagesWithRoom
     ) {
-        //the other part of the constructor
-        //:thumbs-up:
         this.name = name;
         this.viewingAllowed = viewingAllowed;
         this.chattingAllowed = chattingAllowed;
@@ -39,65 +36,45 @@ public class Room {
         this.broadcastAll = broadcastAll;
         this.tagMessagesWithRoom = tagMessagesWithRoom;
     }
-
+    /*---------- getters ----------*/
     public String getName() {
-        // get the room name
-        // input: none
-        // output: room name string
         return name;
     }
+
     public int getMemberCount() {
-        // get number of members in the room
-        // input: none
-        // output: number of members as int
         return members.size();
     }
 
     public boolean canView(int permissionLevel) {
-        // check if a permission level can view the room
-        // input: permission level as int
-        // output: true if can view, false if not
         return viewingAllowed != null && viewingAllowed.contains(permissionLevel);
     }
 
     public boolean canChat(int permissionLevel) {
-        // ditto but for chatting
-        // input: permission level as int
-        // output: true if can chat, false if not
         return chattingAllowed != null && chattingAllowed.contains(permissionLevel);
     }
 
-
     public boolean shouldBroadcastAll() {
-        // check if messages should be broadcast to all clients
-        // this method is so stupid
         return broadcastAll;
     }
 
     public boolean shouldTagMessages() {
-        //why not just use the variable directly?
-        //shut up me from the past
         return tagMessagesWithRoom;
     }
 
     public boolean shouldSaveHistory() {
-        //not used for some reason because chat history is not implemented yet
-        //output what it says on the tin
         return saveHistory;
     }
 
     /* ---------- helpers ---------- */
 
     public static Set<Integer> parsePermissionList(String raw) {
-        // parse a comma-separated list of permission levels into a Set<Integer>
-        // input: raw string
-        // output: set of permission levels
-        // example: "0,1,100" -> {0, 1, 100} :thumbs-up:
+        // parses a comma-separated list of integers into a Set<Integer>
+        // e.g. "1,2,3" -> {1, 2, 3}
+        // input : raw string separated by commas
+        // output: set of integers
         Set<Integer> set = new HashSet<>();
 
-        if (raw == null || raw.isBlank()) {
-            return set;
-        }
+        if (raw == null || raw.isBlank()) return set;
 
         for (String s : raw.split(",")) {
             set.add(Integer.parseInt(s.trim()));
@@ -106,10 +83,10 @@ public class Room {
     }
 
     static String joinPermissionList(Set<Integer> set) {
-        //ditto but backwards
-        // input: set of permission levels
-        // output: comma-separated string
-        // example: {0, 1, 100} -> "0,1,100" :)
+        // joins a Set<Integer> into a comma-separated string
+        // e.g. {1, 2, 3} -> "1,2,3"
+        // input : set of integers
+        // output: raw string separated by commas
         StringBuilder sb = new StringBuilder();
         boolean first = true;
 
@@ -122,9 +99,9 @@ public class Room {
     }
 
     static synchronized void saveRoomToProperties(Room room) {
-        // something something obvious method name something something
-        // input: room object
-        // output: none (writes to rooms.properties)
+        // saves the room configuration to rooms.properties
+        // input : Room object
+        // output: none (writes to file)
         try {
             File file = new File("rooms.properties");
             Properties props = new Properties();
@@ -136,18 +113,19 @@ public class Room {
             }
 
             int index = 0;
-            while (props.containsKey(index + ".name")) {
-                index++;
-            }
+            while (props.containsKey(index + ".name")) index++;
 
             props.setProperty(index + ".name", room.getName());
             props.setProperty(index + ".viewingallowed",
                     joinPermissionList(room.viewingAllowed));
             props.setProperty(index + ".chattingallowed",
                     joinPermissionList(room.chattingAllowed));
-            props.setProperty(index + ".savehistory", String.valueOf(room.shouldSaveHistory()));
-            props.setProperty(index + ".broadcastall", String.valueOf(room.shouldBroadcastAll()));
-            props.setProperty(index + ".tagmessageswithroom", String.valueOf(room.shouldTagMessages()));
+            props.setProperty(index + ".savehistory",
+                    String.valueOf(room.shouldSaveHistory()));
+            props.setProperty(index + ".broadcastall",
+                    String.valueOf(room.shouldBroadcastAll()));
+            props.setProperty(index + ".tagmessageswithroom",
+                    String.valueOf(room.shouldTagMessages()));
 
             try (FileOutputStream out = new FileOutputStream(file)) {
                 props.store(out, "Chat Rooms");
@@ -157,25 +135,31 @@ public class Room {
             e.printStackTrace();
         }
     }
+
+    /* ---------- room logic ---------- */
+
     void broadcast(String message) {
-        // broadcast a message to all room members
-        // input: message string
-        for (ClientHandler c : members) {
-            c.send(message);
+        // sends a message to all members in the room
+        // input : message string
+        // output: none
+        for (RoomMember m : members) {
+            m.send(message);
         }
     }
 
-    void addMember(ClientHandler c) {
-        // add a member to the room
-        // input: ClientHandler (a client)
-        members.add(c);
-        broadcast(c.getUsername() + " joined the room.");
+    void addMember(RoomMember m) {
+        // adds a member to the room
+        // input : RoomMember object
+        // output: none
+        members.add(m);
+        broadcast(m.getUsername() + " joined the room.");
     }
 
-    void removeMember(ClientHandler c) {
-        //ditto but for removing
-        // input: ClientHandler (a client)
-        members.remove(c);
-        broadcast(c.getUsername() + " left the room.");
+    void removeMember(RoomMember m) {
+        // ditto, but removes
+        // input : RoomMember object
+        // output: none
+        members.remove(m);
+        broadcast(m.getUsername() + " left the room.");
     }
 }
