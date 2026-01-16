@@ -8,6 +8,7 @@ public class ClientMain {
     public static void main(String[] args) {
 
         // run tests.. i hate tests
+        
         //ChatClient.runAllTests();
         //ChatManagerWindow.runAllTests();
         //ChatWindow.runAllTests();

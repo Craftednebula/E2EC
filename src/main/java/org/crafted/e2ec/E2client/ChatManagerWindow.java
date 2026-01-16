@@ -260,12 +260,9 @@ private static boolean testSaveAndLoadChats() {
         // ===== LOAD PHASE =====
         ChatManagerWindow loaded = new ChatManagerWindow();
 
-        // inject SAME temp file
+        // inject same temp file
         fileField.set(loaded, tempFile);
 
-        // IMPORTANT:
-        // constructor already called loadChats()
-        // so we must reset state before reloading
         loaded.savedChats.clear();
         loaded.loadChats();
 
