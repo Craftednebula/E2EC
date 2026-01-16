@@ -215,7 +215,7 @@ public class ChatClient {
 
         connect(entry.address);
 
-        // let the SERVER prompt as usual
+        // server prompt handler s
         handleHandshake(new SavedHandshakeProvider(entry));
 
 

@@ -53,7 +53,7 @@ public class RoomBrowserWindow {
         disconnect.addActionListener(e -> {
             try {
                 if (out != null) {
-                    out.println("/quit"); // optional: tell server you are disconnecting
+                    out.println("/quit");
                 }
             } catch (Exception ignored) {}
 
@@ -105,7 +105,6 @@ public class RoomBrowserWindow {
         refreshTimer = new Timer(5000, e -> requestRoomList());
         refreshTimer.start();
 
-        // Stop timer when window closes
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosed(java.awt.event.WindowEvent e) {
                 if (refreshTimer != null) refreshTimer.stop();
@@ -117,7 +116,7 @@ public class RoomBrowserWindow {
         String selected = roomList.getSelectedValue();
         if (selected == null) return;
 
-        // Extract room name (assumes first word is room name)
+        // Extract room name
         String roomName = selected.split(" ")[0];
         out.println("/join " + roomName);
 
@@ -125,7 +124,7 @@ public class RoomBrowserWindow {
         if (refreshTimer != null) refreshTimer.stop();
     }
 
-    /** Add or update a room line dynamically */
+    /** Add or update a room line dynamically :^) */
     public void updateRoom(String roomLine) {
         SwingUtilities.invokeLater(() -> {
             // Extract room name
